@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spor Salonu Yönetimi</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.27.2/axios.min.js"></script>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.html">Spor Salonu Yönetimi</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="uyeler.html">Üyeler</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="personeller.html">Personeller</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="egzersizler.html">Egzersizler</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="saglikbilgileri.html">Sağlık Bilgileri</a>
+                    </li>
+                     <li class="nav-item">
+                        <a class="nav-link" href="abonelik.html">Abonelik Paketleri</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+
+    <div class="container mt-5">
+        <h1 class="text-center">Spor Salonu Yönetim Sistemi</h1>
+
+        <!-- Üye Listeleme Bölümü -->
+        <div id="uye-listesi" class="my-4">
+            <h2>Üye Listesi</h2>
+
+            <div class="mb-3">
+                <input type="text" class="form-control" id="uye-arama" placeholder="Üye Ara...">
+            </div>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Ad</th>
+                        <th>Soyad</th>
+                        <th>Telefon</th>
+                        <th>Eposta</th>
+                        <th>Kayit_Tarihi</th>
+                        <th>Abonelik Paketi</th>
+                        <th>Bitiş Tarihi</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody id="uye-table-body">
+                    <!-- Dinamik olarak doldurulacak -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Üye Ekleme ve Düzenleme Formu -->
+        <div id="uye-form" class="my-4">
+            <h2 id="form-title">Yeni Üye Ekle</h2>
+            <form id="uye-form">
+                <div class="mb-3">
+                    <label for="ad" class="form-label">Ad</label>
+                    <input type="text" class="form-control" id="ad" required>
+                </div>
+                <div class="mb-3">
+                    <label for="soyad" class="form-label">Soyad</label>
+                    <input type="text" class="form-control" id="soyad" required>
+                </div>
+                <div class="mb-3">
+                    <label for="telefon" class="form-label">Telefon</label>
+                    <input type="text" class="form-control" id="telefon">
+                </div>
+                <div class="mb-3">
+                    <label for="eposta" class="form-label">Eposta</label>
+                    <input type="email" class="form-control" id="eposta">
+                </div>
+                <div class="mb-3">
+                    <label for="abonelik-paketi" class="form-label">Abonelik Paketi</label>
+                    <select class="form-control" id="abonelik-paketi" required>
+                        <option value="" disabled selected>Bir paket seçin</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="tutar" class="form-label">Tutar</label>
+                    <input type="number" class="form-control" id="tutar" readonly>
+                </div>
+                <div class="mb-3">
+                    <label for="kayit-tarihi" class="form-label">Kayıt Tarihi</label>
+                    <input type="date" id="kayit-tarihi" class="form-control" readonly>
+                </div>
+                <div class="mb-3">
+                    <label for="odeme-yontemi" class="form-label">Ödeme Yöntemi</label>
+                    <select class="form-control" id="odeme-yontemi" required>
+                        <option value="Nakit">Nakit</option>
+                        <option value="Kredi Kartı">Kredi Kartı</option>
+                        <option value="Havale">Havale</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" id="save-btn">Kaydet</button>
+                <button type="button" class="btn btn-secondary" id="cancel-btn" style="display: none;">İptal</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const apiUrl = 'http://localhost:3000/api/uyeler';
+        const paketApiUrl = 'http://localhost:3000/api/abonelikpaketleri'; // Yeni API adresi
+         let editingUyeId = null;
+
+    document.addEventListener('DOMContentLoaded', async function() {
+        const searchInput = document.getElementById('uye-arama');
+        searchInput.addEventListener('input', function() {
+            fetchUyeler(); // Her giriş yapıldığında fetchUyeler fonksiyonunu çağır
+         });
+           // Sayfa yüklendiğinde tarih inputunun varsayılan değerini bugünün tarihi yap
+
+             const today = new Date();
+              const formattedDate = today.toISOString().split('T')[0];
+              document.getElementById('kayit-tarihi').value = formattedDate;
+
+                // Ödeme yöntemi alanında "Nakit" seçeneğini varsayılan yap
+    const odemeYontemiSelect = document.getElementById('odeme-yontemi');
+    if (odemeYontemiSelect) {
+        const nakitOption = odemeYontemiSelect.querySelector('option[value="Nakit"]');
+        if (nakitOption) {
+            nakitOption.selected = true;
+        }
+    }
+
+    // Abonelik paketi seçildiğinde ücreti otomatik olarak getir
+    const abonelikPaketiSelect = document.getElementById('abonelik-paketi');
+    const tutarInput = document.getElementById('tutar');
+
+    if (abonelikPaketiSelect && tutarInput) {
+        abonelikPaketiSelect.addEventListener('change', async function() {
+            const selectedPaketId = this.value;
+            if (selectedPaketId) {
+                try {
+                    const response = await axios.get(`/api/abonelikpaketleri/${selectedPaketId}`);
+                    tutarInput.value = response.data.Ucret;
+                    // Tutar alanını salt okunur (readonly) yapabilirsiniz
+                    tutarInput.readOnly = true;
+                } catch (error) {
+                    console.error('Abonelik paketi bilgisi getirilirken hata oluştu:', error);
+                    tutarInput.value = ''; // Hata durumunda tutar alanını temizle
+                    tutarInput.readOnly = false; // Hata durumunda düzenlenebilir yapabilirsiniz
+                }
+            } else {
+                tutarInput.value = ''; // Paket seçilmediğinde tutar alanını temizle
+                tutarInput.readOnly = false; // Paket seçilmediğinde düzenlenebilir yapabilirsiniz
+            }
+        });
+    }
+             // Abonelik paketlerini getir ve select'i doldur
+             await fetchAbonelikPaketleri();
+             fetchUyeler();
+});
+
+        // Form kaydetme işlevi
+        document.querySelector('form').addEventListener('submit', async function(event) {
+          event.preventDefault();
+          const ad = document.getElementById('ad').value;
+             const soyad = document.getElementById('soyad').value;
+             const telefon = document.getElementById('telefon').value;
+             const eposta = document.getElementById('eposta').value;
+             const kayitTarihiInput = document.getElementById('kayit-tarihi').value;
+             const abonelikPaketi = document.getElementById('abonelik-paketi').value;
+                 // Tarihi inputtan gelen değerden bir Date nesnesi oluştur.
+              const kayitTarihi = new Date(kayitTarihiInput);
+              // Date objesini ISO string'e dönüştür.
+              const kayitTarihiISO = kayitTarihi.toISOString();
+            
+             const uye = { Ad: ad, Soyad: soyad, Telefon: telefon, Eposta: eposta, Kayit_Tarihi: kayitTarihiISO, Paket_ID : abonelikPaketi };
+                try {
+                 let response;
+                 if (editingUyeId) {
+                     response = await axios.put(`${apiUrl}/${editingUyeId}`, uye);
+                 } else {
+                    console.log("Sending request to:", apiUrl);
+                    console.log("Sending data:", uye)
+                     response = await axios.post(apiUrl, uye);
+                 }
+
+                 resetForm();
+                 fetchUyeler();
+             } catch (error) {
+                  console.error('Üye kaydedilirken hata oluştu:', error);
+                 if (error.response) {
+                    console.error('Response data:', error.response.data);
+                    console.error('Response status:', error.response.status);
+                    console.error('Response headers:', error.response.headers);
+               }
+            }
+        });
+
+          // Abonelik paketlerini getir ve select'i doldur
+         const fetchAbonelikPaketleri = async () => {
+           const selectElement = document.getElementById('abonelik-paketi');
+           selectElement.innerHTML = '<option value="" disabled selected>Bir paket seçin</option>'; // Başlangıç seçeneğini ekle
+    
+           try {
+               const response = await axios.get(paketApiUrl);
+                 const paketler = response.data;
+    
+                paketler.forEach(paket => {
+                 const option = document.createElement('option');
+                 option.value = paket.Paket_ID;
+                 option.text = `${paket.Paket_Adi} (${paket.Sure} Ay) - ${paket.Ucret} TL`;
+                 selectElement.appendChild(option);
+               });
+            } catch (error) {
+             console.error('Abonelik paketleri getirilirken hata oluştu:', error);
+           }
+         };
+    
+
+
+
+const fetchUyeler = async (req, res) => {
+    const tbody = document.getElementById('uye-table-body');
+    tbody.innerHTML = ''; // Tablonun içeriğini temizle
+     const searchTerm = document.getElementById('uye-arama').value;
+     let url = apiUrl;
+
+    try {
+
+         if (searchTerm) {
+              url += `?searchTerm=${searchTerm}`;
+         }
+
+
+        console.log('API URL:', url);
+
+        const response = await axios.get(url);
+        const uyeler = response.data;
+
+        console.log('API Yanıtı:', uyeler);
+        displayUyeler(uyeler);
+        
+    } catch (error) {
+        console.error('Üyeleri getirirken hata oluştu:', error);
+    }
+};
+
+const displayUyeler = (uyeler) => {
+    const tbody = document.getElementById('uye-table-body');
+    tbody.innerHTML = '';
+
+    for (const uye of uyeler) {
+        const formattedKayitTarihi = new Date(uye.Kayit_Tarihi).toLocaleDateString('tr-TR');
+
+        // Bitiş tarihini formatla ve değişkene ata
+        let formattedUyelikBitisTarihi = '';
+        if (uye.UyelikBitisTarihi) {
+            formattedUyelikBitisTarihi = new Date(uye.UyelikBitisTarihi).toLocaleDateString('tr-TR');
+        }
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${uye.Ad}</td>
+            <td>${uye.Soyad}</td>
+            <td>${uye.Telefon || '-'}</td>
+            <td>${uye.Eposta || '-'}</td>
+            <td>${formattedKayitTarihi}</td>
+            <td>${uye.paketAdi}</td>
+            <td>${formattedUyelikBitisTarihi}</td> <!-- Bitiş tarihini ekle -->
+            <td>
+                <button class="btn btn-warning btn-sm" onclick="editUye(${uye.Uye_ID})">Düzenle</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteUye(${uye.Uye_ID})">Sil</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    }
+};
+    
+          // Yeni üye ekle veya mevcut üyeyi güncelle
+         const saveUye = async (event) => {
+             event.preventDefault();
+    
+             const ad = document.getElementById('ad').value;
+             const soyad = document.getElementById('soyad').value;
+             const telefon = document.getElementById('telefon').value;
+             const eposta = document.getElementById('eposta').value;
+             const kayitTarihiInput = document.getElementById('kayit-tarihi').value;
+             const abonelikPaketi = document.getElementById('abonelik-paketi').value;
+    
+              // Tarihi inputtan gelen değerden bir Date nesnesi oluştur.
+              const kayitTarihi = new Date(kayitTarihiInput);
+    
+             // Date objesini ISO string'e dönüştür.
+             const kayitTarihiISO = kayitTarihi.toISOString();
+            
+    
+             const uye = { Ad: ad, Soyad: soyad, Telefon: telefon, Eposta: eposta, Kayit_Tarihi: kayitTarihiISO, Paket_ID : abonelikPaketi };
+    
+             try {
+                 let response;
+                 if (editingUyeId) {
+                     response = await axios.put(`${apiUrl}/${editingUyeId}`, uye);
+                 } else {
+                     response = await axios.post(apiUrl, uye);
+                 }
+    
+                 resetForm();
+                 fetchUyeler();
+             } catch (error) {
+                  console.error('Üye kaydedilirken hata oluştu:', error);
+                 if (error.response) {
+                    console.error('Response data:', error.response.data);
+                    console.error('Response status:', error.response.status);
+                    console.error('Response headers:', error.response.headers);
+               }
+            }
+         };
+         // Üye silme
+         const deleteUye = async (id) => {
+             if (confirm('Bu üyeyi silmek istediğinizden emin misiniz?')) {
+                 try {
+                     await axios.delete(`${apiUrl}/${id}`);
+                     fetchUyeler();
+                 } catch (error) {
+                     console.error('Üye silinirken hata oluştu:', error);
+                 }
+             }
+         };
+        // Üye düzenleme
+         const editUye = async (id) => {
+             try {
+                 const response = await axios.get(`${apiUrl}/${id}`);
+                 const uye = response.data;
+                 
+                 if (!uye) {
+                    console.error('Üye bulunamadı:', id);
+                    return;
+                }
+          
+                 document.getElementById('ad').value = uye.Ad;
+                 document.getElementById('soyad').value = uye.Soyad;
+                 document.getElementById('telefon').value = uye.Telefon || '';
+                 document.getElementById('eposta').value = uye.Eposta || '';
+            
+                 // Tarihi inputa doğru formatta yerleştir
+                  if(uye.Kayit_Tarihi){
+                   const kayitTarihi = new Date(uye.Kayit_Tarihi);
+                   const formattedDate = kayitTarihi.toISOString().split('T')[0];
+                   document.getElementById('kayit-tarihi').value = formattedDate;
+                   } else{
+                   document.getElementById('kayit-tarihi').value = '';
+                    }
+    
+                 // Abonelik paketini seç
+                 if (uye.Paket_ID) {
+            document.getElementById('abonelik-paketi').value = uye.Paket_ID;
+
+            // Abonelik paketinin ücretini getir ve tutar alanını doldur
+            try {
+                const paketResponse = await axios.get(`${paketApiUrl}/${uye.Paket_ID}`);
+                if (paketResponse.data) {
+                    document.getElementById('tutar').value = paketResponse.data.Ucret;
+                }
+            } catch (error) {
+                console.error('Abonelik paketi ücreti getirilirken hata oluştu:', error);
+            }
+        } else {
+            document.getElementById('abonelik-paketi').value = '';
+            document.getElementById('tutar').value = ''; // Paketi olmayan üyenin tutar alanını temizle
+        }
+    
+    
+                 document.getElementById('form-title').innerText = 'Üye Düzenle';
+                 document.getElementById('save-btn').innerText = 'Güncelle';
+                 document.getElementById('cancel-btn').style.display = 'inline';
+                 editingUyeId = id;
+             
+            } catch (error) {
+                console.error('Üye düzenlenirken hata oluştu:', error);
+            }
+         };
+
+         const resetForm = () => {
+            try {
+                document.getElementById('ad').value = '';
+            document.getElementById('soyad').value = '';
+            document.getElementById('telefon').value = '';
+            document.getElementById('eposta').value = '';
+             const today = new Date();
+              const formattedDate = today.toISOString().split('T')[0];
+              document.getElementById('kayit-tarihi').value = formattedDate;
+
+             //document.getElementById('kayit-tarihi').value = formattedDate;
+            document.getElementById('abonelik-paketi').value = '';
+       
+            } catch (error) {
+                console.error('Form sıfırlanırken hata oluştu:', error);    
+            }
+            
+            document.getElementById('tutar').value = '';
+         
+         document.getElementById('form-title').innerText = 'Yeni Üye Ekle';
+         document.getElementById('save-btn').innerText = 'Kaydet';
+         document.getElementById('cancel-btn').style.display = 'none';
+
+         editingUyeId = null;
+     };
+        
+     document.getElementById('cancel-btn').addEventListener('click', resetForm);
+
+     </script>
+
+
+</body>
+</html>

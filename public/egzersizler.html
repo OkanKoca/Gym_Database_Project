@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Egzersizler</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.27.2/axios.min.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.html">Spor Salonu Yönetimi</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="uyeler.html">Üyeler</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="personeller.html">Personeller</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="egzersizler.html">Egzersizler</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="saglikbilgileri.html">Sağlık Bilgileri</a>
+                    </li>
+                     <li class="nav-item">
+                        <a class="nav-link" href="abonelik.html">Abonelik Paketleri</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <h1 class="text-center">Egzersizler</h1>
+
+        <div id="egzersiz-listesi" class="my-4">
+            <h2>Egzersiz Listesi</h2>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Egzersiz Adı</th>
+                        <th>Kas Grupları</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody id="egzersiz-table-body">
+                    </tbody>
+            </table>
+        </div>
+
+        <div id="egzersiz-form" class="my-4">
+            <h2 id="form-title">Yeni Egzersiz Ekle</h2>
+            <form>
+                <div class="mb-3">
+                    <label for="egzersiz-adi" class="form-label">Egzersiz Adı</label>
+                    <input type="text" class="form-control" id="egzersiz-adi" required>
+                </div>
+                <div class="mb-3">
+                    <label for="kas-grubu" class="form-label">Kas Grupları</label>
+                    <select multiple class="form-control" id="kas-grubu" required>
+                        <option value="" disabled selected>Kas Grubu Seçin</option>
+                        <!-- Kas grupları buraya yüklenecek -->
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" id="save-btn">Kaydet</button>
+                <button type="button" class="btn btn-secondary" id="cancel-btn" style="display: none;">İptal</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const egzersizApiUrl = 'http://localhost:3000/api/egzersizler';
+        const kasGruplariApiUrl = 'http://localhost:3000/api/kasgruplari';
+        let editingEgzersizId = null;
+
+        // Sayfa yüklendiğinde egzersizleri ve kas gruplarını getir
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchEgzersizler();
+            fetchKasGruplari();
+        });
+
+        // Egzersizleri API'den getir ve tabloyu doldur
+        const fetchEgzersizler = async () => {
+            const tbody = document.getElementById('egzersiz-table-body');
+            tbody.innerHTML = '';
+
+            try {
+                const response = await axios.get(egzersizApiUrl);
+                const egzersizler = response.data;
+
+                egzersizler.forEach(egzersiz => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${egzersiz.Egzersiz_ID}</td>
+                        <td>${egzersiz.Egzersiz_Adi}</td>
+                        <td>${egzersiz.Kas_Gruplari.join(', ')}</td>
+                        <td>
+                            <button class="btn btn-warning btn-sm" onclick="editEgzersiz(${egzersiz.Egzersiz_ID})">Düzenle</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteEgzersiz(${egzersiz.Egzersiz_ID})">Sil</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Egzersizler getirilirken hata oluştu:', error);
+            }
+        };
+
+        // Kas gruplarını API'den getir ve select elementini doldur
+        const fetchKasGruplari = async () => {
+            const selectElement = document.getElementById('kas-grubu');
+            selectElement.innerHTML = ''; 
+
+            try {
+                const response = await axios.get(kasGruplariApiUrl);
+                const kasGruplari = response.data;
+
+                kasGruplari.forEach(kasGrubu => {
+                    const option = document.createElement('option');
+                    option.value = kasGrubu.Kas_Grubu_ID;
+                    option.text = kasGrubu.Kas_Grubu_Adi;
+                    selectElement.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Kas grupları getirilirken hata oluştu:', error);
+            }
+        };
+
+        // Formu gönder (yeni egzersiz ekle veya mevcut egzersizi güncelle)
+        document.querySelector('#egzersiz-form form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const egzersizAdi = document.getElementById('egzersiz-adi').value;
+            const kasGrubuSelect = document.getElementById('kas-grubu');
+            const seciliKasGruplari = Array.from(kasGrubuSelect.selectedOptions).map(option => parseInt(option.value));
+
+            const egzersiz = { Egzersiz_Adi: egzersizAdi, Kas_Gruplari: seciliKasGruplari };
+
+            try {
+                let response;
+                if (editingEgzersizId) {
+                    response = await axios.put(`${egzersizApiUrl}/${editingEgzersizId}`, egzersiz);
+                } else {
+                    response = await axios.post(egzersizApiUrl, egzersiz);
+                }
+
+                resetForm();
+                fetchEgzersizler();
+            } catch (error) {
+                console.error('Egzersiz kaydedilirken hata oluştu:', error);
+            }
+        });
+
+        // Egzersiz düzenleme
+        const editEgzersiz = async (id) => {
+    try {
+        const response = await axios.get(`${egzersizApiUrl}/${id}`);
+        const egzersiz = response.data;
+
+        console.log("Düzenlenecek egzersiz verisi:", egzersiz);
+
+        document.getElementById('egzersiz-adi').value = egzersiz.Egzersiz_Adi;
+
+        // Kas gruplarını seçili hale getir
+        const kasGrubuSelect = document.getElementById('kas-grubu');
+
+        // Tüm option elementlerini döngüye al
+        for (let i = 0; i < kasGrubuSelect.options.length; i++) {
+            const option = kasGrubuSelect.options[i];
+            // Eğer egzersizin Kas_Gruplari dizisi, option'ın text değerini içeriyorsa
+            if (egzersiz.Kas_Gruplari && egzersiz.Kas_Gruplari.includes(option.text)) {
+                option.selected = true; // Bu option'ı seçili hale getir
+            }
+        }
+
+        document.getElementById('form-title').innerText = 'Egzersiz Düzenle';
+        document.getElementById('save-btn').innerText = 'Güncelle';
+        document.getElementById('cancel-btn').style.display = 'inline';
+
+        editingEgzersizId = id;
+    } catch (error) {
+        console.error('Egzersiz düzenlenirken hata oluştu:', error);
+    }
+};
+
+        // Egzersiz silme
+        const deleteEgzersiz = async (id) => {
+            if (confirm('Bu egzersizi silmek istediğinizden emin misiniz?')) {
+                try {
+                    await axios.delete(`${egzersizApiUrl}/${id}`);
+                    fetchEgzersizler();
+                } catch (error) {
+                    console.error('Egzersiz silinirken hata oluştu:', error);
+                }
+            }
+        };
+
+        // Formu sıfırla
+        const resetForm = () => {
+            document.getElementById('egzersiz-adi').value = '';
+            document.getElementById('kas-grubu').selectedIndex = -1; // Select elementindeki tüm seçimleri kaldır
+
+            document.getElementById('form-title').innerText = 'Yeni Egzersiz Ekle';
+            document.getElementById('save-btn').innerText = 'Kaydet';
+            document.getElementById('cancel-btn').style.display = 'none';
+
+            editingEgzersizId = null;
+        };
+
+        // İptal butonu işlevi
+        document.getElementById('cancel-btn').addEventListener('click', resetForm);
+    </script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abonelik Paketleri</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.27.2/axios.min.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.html">Spor Salonu Yönetimi</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="uyeler.html">Üyeler</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="personeller.html">Personeller</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="egzersizler.html">Egzersizler</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="saglikbilgileri.html">Sağlık Bilgileri</a>
+                    </li>
+                     <li class="nav-item">
+                        <a class="nav-link active" href="abonelik.html">Abonelik Paketleri</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <h1 class="text-center">Abonelik Paketleri</h1>
+
+        <div id="paket-listesi" class="my-4">
+            <h2>Paket Listesi</h2>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Paket Adı</th>
+                        <th>Süre (Ay)</th>
+                        <th>Ücret</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody id="paket-table-body">
+                    </tbody>
+            </table>
+        </div>
+
+        <div id="paket-form" class="my-4">
+            <h2 id="form-title">Yeni Paket Ekle</h2>
+            <form>
+                <div class="mb-3">
+                    <label for="paket-adi" class="form-label">Paket Adı</label>
+                    <input type="text" class="form-control" id="paket-adi" required>
+                </div>
+                <div class="mb-3">
+                    <label for="paket-suresi" class="form-label">Süre (Ay)</label>
+                    <input type="number" class="form-control" id="paket-suresi" required>
+                </div>
+                <div class="mb-3">
+                    <label for="paket-ucreti" class="form-label">Ücret</label>
+                    <input type="number" class="form-control" id="paket-ucreti" required>
+                </div>
+                <button type="submit" class="btn btn-primary" id="save-btn">Kaydet</button>
+                <button type="button" class="btn btn-secondary" id="cancel-btn" style="display: none;">İptal</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const paketApiUrl = 'http://localhost:3000/api/abonelikpaketleri';
+        let editingPaketId = null;
+
+        // Sayfa yüklendiğinde paketleri getir
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchPaketler();
+        });
+
+        // Paketleri API'den getir ve tabloyu doldur
+        const fetchPaketler = async () => {
+            const tbody = document.getElementById('paket-table-body');
+            tbody.innerHTML = '';
+
+            try {
+                const response = await axios.get(paketApiUrl);
+                const paketler = response.data;
+
+                paketler.forEach(paket => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${paket.Paket_ID}</td>
+                        <td>${paket.Paket_Adi}</td>
+                        <td>${paket.Sure}</td>
+                        <td>${paket.Ucret}</td>
+                        <td>
+                            <button class="btn btn-warning btn-sm" onclick="editPaket(${paket.Paket_ID})">Düzenle</button>
+                            <button class="btn btn-danger btn-sm" onclick="deletePaket(${paket.Paket_ID})">Sil</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Paketler getirilirken hata oluştu:', error);
+            }
+        };
+
+        // Formu gönder (yeni paket ekle veya mevcut paketi güncelle)
+        document.querySelector('#paket-form form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const paketAdi = document.getElementById('paket-adi').value;
+            const paketSuresi = parseInt(document.getElementById('paket-suresi').value);
+            const paketUcreti = parseFloat(document.getElementById('paket-ucreti').value);
+
+            const paket = { Paket_Adi: paketAdi, Sure: paketSuresi, Ucret: paketUcreti };
+
+            try {
+                let response;
+                if (editingPaketId) {
+                    response = await axios.put(`${paketApiUrl}/${editingPaketId}`, paket);
+                } else {
+                    response = await axios.post(paketApiUrl, paket);
+                }
+
+                resetForm();
+                fetchPaketler();
+            } catch (error) {
+                console.error('Paket kaydedilirken hata oluştu:', error);
+            }
+        });
+
+        // Paket düzenleme
+        const editPaket = async (id) => {
+            try {
+                const response = await axios.get(`${paketApiUrl}/${id}`);
+                const paket = response.data;
+
+                document.getElementById('paket-adi').value = paket.Paket_Adi;
+                document.getElementById('paket-suresi').value = paket.Sure;
+                document.getElementById('paket-ucreti').value = paket.Ucret;
+
+                document.getElementById('form-title').innerText = 'Paket Düzenle';
+                document.getElementById('save-btn').innerText = 'Güncelle';
+                document.getElementById('cancel-btn').style.display = 'inline';
+
+                editingPaketId = id;
+            } catch (error) {
+                console.error('Paket düzenlenirken hata oluştu:', error);
+            }
+        };
+
+        // Paket silme
+        const deletePaket = async (id) => {
+            if (confirm('Bu paketi silmek istediğinizden emin misiniz?')) {
+                try {
+                    await axios.delete(`${paketApiUrl}/${id}`);
+                    fetchPaketler();
+                } catch (error) {
+                    console.error('Paket silinirken hata oluştu:', error);
+                }
+            }
+        };
+
+        // Formu sıfırla
+        const resetForm = () => {
+            document.getElementById('paket-adi').value = '';
+            document.getElementById('paket-suresi').value = '';
+            document.getElementById('paket-ucreti').value = '';
+
+            document.getElementById('form-title').innerText = 'Yeni Paket Ekle';
+            document.getElementById('save-btn').innerText = 'Kaydet';
+            document.getElementById('cancel-btn').style.display = 'none';
+
+            editingPaketId = null;
+        };
+
+        // İptal butonu işlevi
+        document.getElementById('cancel-btn').addEventListener('click', resetForm);
+    </script>
+</body>
+</html>
