@@ -1,4 +1,4 @@
-# Spor Salonu Yönetim Sistemi Veritabanı Projesi
+# Spor Salonu Yönetim Sistemi
 Bu proje, Veritabanı Yönetim Sistemleri dersi kapsamında geliştirilmiş bir spor salonu yönetim sistemidir. Amaç, spor salonuna ait üyelik, eğitmen, egzersiz, ödeme gibi verilerin düzenli ve etkili bir şekilde yönetilmesini sağlamaktır.
 
 ## 🔧 Kullanılan Teknolojiler
